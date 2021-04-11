@@ -97,10 +97,10 @@ export const viewerResolvers: IResolvers = {
           return { didRequest: true };
         }
 
-        const { _id, token: userToken, walletId, avatar } = viewer;
+        const { _id, token: userToken, avatar } = viewer;
         return {
           _id,
-          walletId,
+          walletId: viewer.walletId,
           avatar,
           token: userToken,
           didRequest: true,

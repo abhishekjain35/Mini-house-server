@@ -5,7 +5,7 @@ export const typeDefs = gql`
     id: ID
     token: String
     avatar: String
-    hasWallet: Boolean!
+    hasWallet: Boolean
     didRequest: Boolean!
   }
 
