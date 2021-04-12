@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Request, Response } from "express";
 import { IResolvers } from "apollo-server-express";
 import { Google } from "../../../lib/api";
 import { Viewer, Database, User } from "../../../lib/types";
@@ -84,6 +84,26 @@ const logInViaGoogle = async (
   return viewer;
 };
 
+const logInViaCookie = async (
+  token: string,
+  db: Database,
+  req: Request,
+  res: Response
+): Promise<User | undefined> => {
+  const updateRes = await db.users.findOneAndUpdate(
+    { _id: req.signedCookies.viewer },
+    { $set: { token } },
+    { returnOriginal: false }
+  );
+
+  const viewer = updateRes.value;
+  if (!viewer) {
+    res.clearCookie("viewer", cookieOptions);
+  }
+
+  return viewer;
+};
+
 export const viewerResolvers: IResolvers = {
   Query: {
     authUrl: (): string => {
@@ -98,14 +118,14 @@ export const viewerResolvers: IResolvers = {
     logIn: async (
       _root: undefined,
       { input }: LogInArgs,
-      { db }: { db: Database }
+      { db, req, res }: { db: Database; req: Request; res: Response }
     ): Promise<Viewer> => {
       try {
         const code = input ? input.code : null;
         const token = crypto.randomBytes(16).toString("hex");
         const viewer: User | undefined = code
-          ? await logInViaGoogle(code, token, db)
-          : undefined;
+          ? await logInViaGoogle(code, token, db, res)
+          : await logInViaCookie(token, db, req, res);
 
         if (!viewer) {
           return { didRequest: true };
@@ -123,8 +143,13 @@ export const viewerResolvers: IResolvers = {
         throw new Error(`Failed to login: ${err}`);
       }
     },
-    logOut: (): Viewer => {
+    logOut: (
+      _root: undefined,
+      _arg: {},
+      { res }: { res: Response }
+    ): Viewer => {
       try {
+        res.clearCookie("viewer", cookieOptions);
         return { didRequest: true };
       } catch (error) {
         throw new Error("Failed to Logout" + error);
