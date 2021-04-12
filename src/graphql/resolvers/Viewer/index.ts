@@ -1,13 +1,22 @@
+import { Response } from "express";
 import { IResolvers } from "apollo-server-express";
 import { Google } from "../../../lib/api";
 import { Viewer, Database, User } from "../../../lib/types";
 import { LogInArgs } from "./types";
 import crypto from "crypto";
 
+const cookieOptions = {
+  httpOnly: true,
+  sameSite: true,
+  signed: true,
+  secure: process.env.NODE_ENV === "development" ? false : true,
+};
+
 const logInViaGoogle = async (
   code: string,
   token: string,
-  db: Database
+  db: Database,
+  res: Response
 ): Promise<User | undefined> => {
   const { user } = await Google.logIn(code);
   if (!user) {
@@ -66,6 +75,11 @@ const logInViaGoogle = async (
     });
     viewer = insertRes.ops[0];
   }
+
+  res.cookie("viewer", _id, {
+    ...cookieOptions,
+    maxAge: 365 * 24 * 60 * 60 * 1000,
+  });
 
   return viewer;
 };
