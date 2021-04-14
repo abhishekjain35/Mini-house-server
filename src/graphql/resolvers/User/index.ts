@@ -1,5 +1,11 @@
 import { IResolvers } from "apollo-server-express";
-import { UserArgs, UserBookingsData, UserBookingsArgs } from "./types";
+import {
+  UserArgs,
+  UserBookingsData,
+  UserBookingsArgs,
+  UserListingsData,
+  UserListingsArgs,
+} from "./types";
 import { Database, User } from "../../../lib/types";
 import { Request } from "express";
 import { authorize } from "../../../lib/utils";
@@ -59,10 +65,34 @@ export const UserResolvers: IResolvers = {
 
         data.total = await cursor.count();
         data.result = await cursor.toArray();
-        
+
         return data;
       } catch (error) {
         throw new Error(`Failed to query User Bookings: ${error}`);
+      }
+    },
+    listings: async (
+      user: User,
+      { limit, page }: UserListingsArgs,
+      { db }: { db: Database }
+    ): Promise<UserListingsData | null> => {
+      try {
+        const data: UserListingsData = { total: 0, result: [] };
+        let cursor = await db.listings.find({
+          _id: {
+            $in: user.listings,
+          },
+        });
+
+        cursor = cursor.skip(page > 0 ? (page - 1) * limit : 0);
+        cursor = cursor.limit(limit);
+
+        data.total = await cursor.count();
+        data.result = await cursor.toArray();
+
+        return data;
+      } catch (error) {
+        throw new Error(`Failed to query User Listings: ${error}`);
       }
     },
   },
