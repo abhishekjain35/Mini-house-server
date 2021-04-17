@@ -1,20 +1,27 @@
 import { IResolvers } from "apollo-server-express";
 import { ObjectId } from "mongodb";
-import { Listing, Database } from "../../../lib/types";
-import { ListingArgs } from "./types";
+import { Listing, Database, User } from "../../../lib/types";
+import { authorize } from "../../../lib/utils";
+import { Request } from "express";
+import { ListingArgs, ListingBookingsArgs, ListingBookingsData } from "./types";
 
 export const listingResolvers: IResolvers = {
   Query: {
     listing: async (
       _root: undefined,
       { id }: ListingArgs,
-      { db }: { db: Database }
+      { db, req }: { db: Database; req: Request }
     ): Promise<Listing> => {
       try {
         const res = await db.listings.findOne({ _id: new ObjectId(id) });
 
         if (!res) {
           throw new Error("listing can't be found");
+        }
+
+        const viewer = await authorize(db, req);
+        if (viewer && viewer._id === res.host) {
+          res.authorized = true;
         }
 
         return res;
@@ -26,6 +33,50 @@ export const listingResolvers: IResolvers = {
   Listing: {
     id: (listing: Listing): string => {
       return listing._id.toString();
+    },
+    host: async (
+      listing: Listing,
+      _args: {},
+      { db }: { db: Database }
+    ): Promise<User> => {
+      const host = await db.users.findOne({ _id: listing.host });
+      if (!host) {
+        throw new Error("host can't be found");
+      }
+      return host;
+    },
+    bookingsIndex: (listing: Listing): string => {
+      return JSON.stringify(listing.bookingsIndex);
+    },
+    bookings: async (
+      listing: Listing,
+      { limit, page }: ListingBookingsArgs,
+      { db }: { db: Database }
+    ): Promise<ListingBookingsData | null> => {
+      try {
+        if (!listing.authorized) {
+          return null;
+        }
+
+        const data: ListingBookingsData = {
+          total: 0,
+          result: [],
+        };
+
+        let cursor = await db.bookings.find({
+          _id: { $in: listing.bookings },
+        });
+
+        cursor = cursor.skip(page > 0 ? (page - 1) * limit : 0);
+        cursor = cursor.limit(limit);
+
+        data.total = await cursor.count();
+        data.result = await cursor.toArray();
+
+        return data;
+      } catch (error) {
+        throw new Error(`Failed to query listing bookings: ${error}`);
+      }
     },
   },
 };
