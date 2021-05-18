@@ -783,6 +783,7 @@ const seed = async () => {
     const db = await connectDatabase();
 
     for (const listing of listings) {
+      listing.price = Math.round(listing.price / 10);
       await db.listings.insertOne(listing);
     }
     for (const user of users) {

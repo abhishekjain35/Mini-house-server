@@ -20,9 +20,10 @@ export const Stripe = {
     const res = await client.charges.create(
       {
         amount,
-        currency: "usd",
+        currency: "inr",
         source,
         application_fee_amount: Math.round(amount * 0.05),
+        description: "MiniHouse",
       },
       {
         stripe_account: stripeAccount,
