@@ -8,7 +8,7 @@ export const connectDatabase = async (): Promise<Database> => {
     useNewUrlParser: true,
     useUnifiedTopology: true,
   });
-  const db = client.db("tinyhouse");
+  const db = client.db(process.env.DB_NAME);
 
   return {
     bookings: db.collection<Booking>("bookings"),
